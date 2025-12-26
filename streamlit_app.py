@@ -1,7 +1,7 @@
 import pandas as pd
 import streamlit as st
 
-APP_TITLE = "Specified Allowable Concentration Search System"
+APP_TITLE = "Specified Allowable Concentration Search System for Cosmetic Preservatives and Ingredients"
 SEARCH_COMMON = "Name of Common Ingredients Glossary"
 SEARCH_CAS = "CAS Number"
 
@@ -28,7 +28,7 @@ def load_csv(path: str) -> pd.DataFrame:
 st.set_page_config(page_title=APP_TITLE, layout="wide")
 
 st.title(APP_TITLE)
-st.caption("ระบบค้นหาปริมาณที่กำหนดให้ใช้ได้สำหรับสารกันเสีย และวัตถุที่อาจใช้เป็นส่วนผสมในการผลิตเครื่องสำอาง")
+st.caption("ระบบค้นหาปริมาณที่กำหนดให้ใช้ได้สำหรับสารกันเสียและวัตถุที่อาจใช้เป็นส่วนผสมในการผลิตเครื่องสำอาง")
 
 # ---- load ----
 df_pres = load_csv("preservatives.csv")
