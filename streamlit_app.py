@@ -1,7 +1,7 @@
 import pandas as pd
 import streamlit as st
 
-APP_TITLE = "Specified Allowable Concentration Search System"
+APP_TITLE = "ระบบค้นหาปริมาณที่กำหนดให้ใช้ได้สำหรับสารกันเสีย และวัตถุที่อาจใช้เป็นส่วนผสมในการผลิตเครื่องสำอาง"
 
 # คอลัมน์ที่ต้องการแสดง “ในตาราง”
 TABLE_COLUMNS_ORDER = [
