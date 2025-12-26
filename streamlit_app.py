@@ -5,16 +5,6 @@ APP_TITLE = "Specified Allowable Concentration Search System"
 SEARCH_COMMON = "Name of Common Ingredients Glossary"
 SEARCH_CAS = "CAS Number"
 
-FIELDS_MAIN = [
-    ("แหล่งข้อมูล", "แหล่งข้อมูล"),
-    ("ลำดับ", "ลำดับ"),
-    ("Common", SEARCH_COMMON),
-    ("CAS", SEARCH_CAS),
-    ("กรณีที่ใช้", "กรณีที่ใช้"),
-    ("ความเข้มข้นสูงสุดในเครื่องสำอางพร้อมใช้ (%w/w)", "ความเข้มข้นสูงสุดในเครื่องสำอางพร้อมใช้ (%w/w)"),
-    ("Chemical Name/Other Name", "Chemical Name/ Other Name"),
-]
-
 def clean_val(v):
     if v is None:
         return "-"
@@ -75,28 +65,12 @@ if qq:
 df_f = df_f.reset_index(drop=True)
 st.write(f"พบ {len(df_f):,} รายการ")
 
-# ---- UI options ----
-opt1, opt2, opt3 = st.columns([1.2, 1.2, 2.6])
-with opt1:
+# ---- options ----
+o1, o2 = st.columns([1.2, 3.8])
+with o1:
     show_per_page = st.selectbox("แสดงต่อหน้า", [10, 20, 30, 50], index=1)
-with opt2:
-    sort_by = st.selectbox("เรียงตาม", ["ลำดับ", "Common", "CAS", "แหล่งข้อมูล"], index=0)
-with opt3:
-    st.caption("Tip: พิมพ์ค้นหาแล้วรายการจะเปลี่ยนแบบ realtime")
-
-# ---- sort ----
-if len(df_f) > 0:
-    if sort_by == "ลำดับ" and "ลำดับ" in df_f.columns:
-        # แปลงเป็นตัวเลขแบบปลอดภัย (กรณีมี 1a)
-        df_f["_sort"] = df_f["ลำดับ"].astype(str)
-        df_f = df_f.sort_values(by="_sort", kind="stable")
-        df_f = df_f.drop(columns=["_sort"])
-    elif sort_by == "Common" and SEARCH_COMMON in df_f.columns:
-        df_f = df_f.sort_values(by=SEARCH_COMMON, kind="stable")
-    elif sort_by == "CAS" and SEARCH_CAS in df_f.columns:
-        df_f = df_f.sort_values(by=SEARCH_CAS, kind="stable")
-    elif sort_by == "แหล่งข้อมูล" and "แหล่งข้อมูล" in df_f.columns:
-        df_f = df_f.sort_values(by="แหล่งข้อมูล", kind="stable")
+with o2:
+    st.caption("รายการจะแสดงรายละเอียดทั้งหมดโดยไม่ต้องกดดู")
 
 # ---- pagination ----
 total = len(df_f)
@@ -111,20 +85,25 @@ end = min(start + show_per_page, total)
 
 st.divider()
 
-# ---- render cards ----
+# ---- render cards (no expander) ----
 for i in range(start, end):
     row = df_f.iloc[i]
+
     src = clean_val(row.get("แหล่งข้อมูล", "-"))
     common = clean_val(row.get(SEARCH_COMMON, "-"))
     cas = clean_val(row.get(SEARCH_CAS, "-"))
     maxc = clean_val(row.get("ความเข้มข้นสูงสุดในเครื่องสำอางพร้อมใช้ (%w/w)", "-"))
     usecase = clean_val(row.get("กรณีที่ใช้", "-"))
+    chem = clean_val(row.get("Chemical Name/ Other Name", "-"))
+    order = clean_val(row.get("ลำดับ", "-"))
+    cond = clean_val(row.get("เงื่อนไข", "-"))
 
-    title = f"{common}  •  {cas}  •  {src}"
+    title = f"{common} • {cas} • {src}"
 
     with st.container(border=True):
         st.markdown(f"### {title}")
 
+        # แถวบน: สรุป
         a, b, c = st.columns([1.2, 1.2, 2.2])
         with a:
             st.caption("ความเข้มข้นสูงสุด")
@@ -134,12 +113,18 @@ for i in range(start, end):
             st.write(usecase)
         with c:
             st.caption("Chemical Name/Other Name")
-            st.write(clean_val(row.get("Chemical Name/ Other Name", "-")))
+            st.write(chem)
 
-        with st.expander("ดูรายละเอียด / เงื่อนไขการใช้งาน"):
-            for label, key in FIELDS_MAIN:
-                st.markdown(f"**{label}**")
-                st.write(clean_val(row.get(key, "-")))
+        st.markdown("---")
 
-            st.markdown("**เงื่อนไขการใช้งาน**")
-            st.write(clean_val(row.get("เงื่อนไข", "-")))
+        # แถวล่าง: รายละเอียดทั้งหมด (อ่านง่าย)
+        d1, d2 = st.columns([1.2, 2.8])
+        with d1:
+            st.caption("ข้อมูลหลัก")
+            st.write(f"**แหล่งข้อมูล:** {src}")
+            st.write(f"**ลำดับ:** {order}")
+            st.write(f"**Common:** {common}")
+            st.write(f"**CAS:** {cas}")
+        with d2:
+            st.caption("เงื่อนไขการใช้งาน")
+            st.write(cond)
