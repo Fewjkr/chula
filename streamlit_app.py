@@ -15,21 +15,21 @@ st.set_page_config(
 )
 
 # ===============================
-# STYLE (LIGHT + FDA BLUE)
+# STYLE (LIGHT + FDA BLUE – FIX CONTRAST)
 # ===============================
 st.markdown(
     """
     <style>
-        html, body, [class*="css"]  {
+        html, body, [class*="css"] {
             font-family: "Segoe UI", "Noto Sans Thai", sans-serif;
-            background-color: #f8fafc;
+            color: #0f172a;
         }
 
         .stApp {
             background-color: #f8fafc;
         }
 
-        /* Header */
+        /* ---------- HEADER ---------- */
         .app-title {
             font-size: 38px;
             font-weight: 800;
@@ -39,29 +39,45 @@ st.markdown(
 
         .app-subtitle {
             font-size: 16px;
-            color: #475569;
+            color: #334155;
         }
 
-        /* Card style */
+        /* ---------- INPUT / SELECT ---------- */
+        input, textarea {
+            background-color: #ffffff !important;
+            color: #0f172a !important;
+            border-radius: 10px !important;
+        }
+
+        div[data-baseweb="select"] > div {
+            background-color: #ffffff !important;
+            color: #0f172a !important;
+            border-radius: 10px !important;
+        }
+
+        /* ---------- CARD STYLE ---------- */
         div[data-testid="stContainer"] {
-            background: linear-gradient(180deg, #eff6ff 0%, #ffffff 100%);
+            background: #ffffff;
             border: 1px solid #bfdbfe;
             border-left: 6px solid #2563eb;
             border-radius: 14px;
             padding: 18px;
-            margin-bottom: 18px;
-            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+            margin-bottom: 20px;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
         }
 
-        /* Labels */
+        /* ---------- TEXT ---------- */
+        .stCaption {
+            color: #475569 !important;
+        }
+
         label {
             font-weight: 600 !important;
-            color: #1e293b !important;
+            color: #0f172a !important;
         }
 
-        /* Caption text */
-        .stCaption {
-            color: #64748b;
+        h3 {
+            color: #0f172a;
         }
 
         hr {
