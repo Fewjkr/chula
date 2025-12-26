@@ -2,48 +2,29 @@ import pandas as pd
 import streamlit as st
 
 APP_TITLE = "Specified Allowable Concentration Search System"
-
-# คอลัมน์ที่แสดงในตาราง (ลำดับอยู่หน้าสุด)
-TABLE_COLUMNS_ORDER = [
-    "ลำดับ",
-    "แหล่งข้อมูล",
-    "Name of Common Ingredients Glossary",
-    "CAS Number",
-    "Chemical Name/ Other Name",
-    "กรณีที่ใช้",
-    "ความเข้มข้นสูงสุดในเครื่องสำอางพร้อมใช้ (%w/w)",
-    "เงื่อนไข",  # ✅ เพิ่มกลับเข้าตาราง
-]
-
-# คอลัมน์ในรายละเอียด (แสดงเต็ม อ่านง่าย)
-DETAIL_FIELDS = [
-    ("แหล่งข้อมูล", "แหล่งข้อมูล"),
-    ("ลำดับ", "ลำดับ"),
-    ("Common", "Name of Common Ingredients Glossary"),
-    ("CAS", "CAS Number"),
-    ("กรณีที่ใช้", "กรณีที่ใช้"),
-    ("Chemical Name/Other Name", "Chemical Name/ Other Name"),
-    ("ความเข้มข้นสูงสุดในเครื่องสำอางพร้อมใช้ (%w/w)", "ความเข้มข้นสูงสุดในเครื่องสำอางพร้อมใช้ (%w/w)"),
-]
-
 SEARCH_COMMON = "Name of Common Ingredients Glossary"
 SEARCH_CAS = "CAS Number"
 
-# ตัดคำให้พอดีช่อง (เฉพาะในตาราง)
-TRUNC_LIMIT = {
-    "Chemical Name/ Other Name": 55,
-    "Name of Common Ingredients Glossary": 42,
-    "กรณีที่ใช้": 40,
-    "ความเข้มข้นสูงสุดในเครื่องสำอางพร้อมใช้ (%w/w)": 50,
-    "เงื่อนไข": 80,  # ✅ ตัดคำเงื่อนไขในตาราง
-}
+FIELDS_MAIN = [
+    ("แหล่งข้อมูล", "แหล่งข้อมูล"),
+    ("ลำดับ", "ลำดับ"),
+    ("Common", SEARCH_COMMON),
+    ("CAS", SEARCH_CAS),
+    ("กรณีที่ใช้", "กรณีที่ใช้"),
+    ("ความเข้มข้นสูงสุดในเครื่องสำอางพร้อมใช้ (%w/w)", "ความเข้มข้นสูงสุดในเครื่องสำอางพร้อมใช้ (%w/w)"),
+    ("Chemical Name/Other Name", "Chemical Name/ Other Name"),
+]
 
-def trunc(s, n):
-    s = "" if s is None else str(s)
-    s = " ".join(s.split())
-    if n and len(s) > n:
-        return s[: max(0, n - 1)] + "…"
-    return s
+def clean_val(v):
+    if v is None:
+        return "-"
+    if isinstance(v, float) and pd.isna(v):
+        return "-"
+    s = str(v).strip()
+    return "-" if s == "" or s.lower() == "nan" else s
+
+def norm_series(s: pd.Series) -> pd.Series:
+    return s.astype(str).str.lower().str.strip()
 
 @st.cache_data
 def load_csv(path: str) -> pd.DataFrame:
@@ -54,33 +35,19 @@ def load_csv(path: str) -> pd.DataFrame:
             pass
     return pd.read_csv(path)
 
-def norm_series(s: pd.Series) -> pd.Series:
-    return s.astype(str).str.lower().str.strip()
-
-def safe_cols(df: pd.DataFrame, cols):
-    return [c for c in cols if c in df.columns]
-
-def clean_val(v):
-    if v is None:
-        return "-"
-    if isinstance(v, float) and pd.isna(v):
-        return "-"
-    s = str(v).strip()
-    return "-" if s == "" or s.lower() == "nan" else s
-
 st.set_page_config(page_title=APP_TITLE, layout="wide")
 
 st.title(APP_TITLE)
 st.caption("ระบบค้นหาปริมาณที่กำหนดให้ใช้ได้สำหรับสารกันเสีย และวัตถุที่อาจใช้เป็นส่วนผสมในการผลิตเครื่องสำอาง")
 
-# ----- Load -----
+# ---- load ----
 df_pres = load_csv("preservatives.csv")
 df_allow = load_csv("allowed.csv")
 df_pres["แหล่งข้อมูล"] = "วัตถุกันเสีย"
 df_allow["แหล่งข้อมูล"] = "วัตถุอาจใช้เป็นส่วนผสม"
 
-# ----- Controls -----
-c1, c2 = st.columns([1.2, 2.8])
+# ---- controls ----
+c1, c2 = st.columns([1.1, 2.9])
 with c1:
     dataset = st.selectbox("ชุดข้อมูล", ["ทั้งหมด (2 ไฟล์)", "วัตถุกันเสีย", "วัตถุอาจใช้เป็นส่วนผสม"])
 with c2:
@@ -93,7 +60,7 @@ elif dataset == "วัตถุอาจใช้เป็นส่วนผส
 else:
     df = pd.concat([df_pres, df_allow], ignore_index=True)
 
-# ----- Filter -----
+# ---- filter ----
 df_f = df.copy()
 qq = (q or "").strip()
 if qq:
@@ -106,80 +73,73 @@ if qq:
     df_f = df_f[mask].copy()
 
 df_f = df_f.reset_index(drop=True)
-st.write(f"พบ {len(df_f):,} แถว")
+st.write(f"พบ {len(df_f):,} รายการ")
 
-left, right = st.columns([3.6, 1.4])
+# ---- UI options ----
+opt1, opt2, opt3 = st.columns([1.2, 1.2, 2.6])
+with opt1:
+    show_per_page = st.selectbox("แสดงต่อหน้า", [10, 20, 30, 50], index=1)
+with opt2:
+    sort_by = st.selectbox("เรียงตาม", ["ลำดับ", "Common", "CAS", "แหล่งข้อมูล"], index=0)
+with opt3:
+    st.caption("Tip: พิมพ์ค้นหาแล้วรายการจะเปลี่ยนแบบ realtime")
 
-with left:
-    st.subheader("ผลการค้นหา")
+# ---- sort ----
+if len(df_f) > 0:
+    if sort_by == "ลำดับ" and "ลำดับ" in df_f.columns:
+        # แปลงเป็นตัวเลขแบบปลอดภัย (กรณีมี 1a)
+        df_f["_sort"] = df_f["ลำดับ"].astype(str)
+        df_f = df_f.sort_values(by="_sort", kind="stable")
+        df_f = df_f.drop(columns=["_sort"])
+    elif sort_by == "Common" and SEARCH_COMMON in df_f.columns:
+        df_f = df_f.sort_values(by=SEARCH_COMMON, kind="stable")
+    elif sort_by == "CAS" and SEARCH_CAS in df_f.columns:
+        df_f = df_f.sort_values(by=SEARCH_CAS, kind="stable")
+    elif sort_by == "แหล่งข้อมูล" and "แหล่งข้อมูล" in df_f.columns:
+        df_f = df_f.sort_values(by="แหล่งข้อมูล", kind="stable")
 
-    if len(df_f) == 0:
-        st.info("ไม่พบข้อมูล")
-        st.stop()
+# ---- pagination ----
+total = len(df_f)
+if total == 0:
+    st.info("ไม่พบข้อมูล")
+    st.stop()
 
-    # จัดคอลัมน์ตามลำดับที่ต้องการ
-    table_cols = safe_cols(df_f, TABLE_COLUMNS_ORDER)
-    df_table = df_f[table_cols].copy()
+pages = (total - 1) // show_per_page + 1
+page = st.number_input("หน้า", min_value=1, max_value=pages, value=1, step=1)
+start = (page - 1) * show_per_page
+end = min(start + show_per_page, total)
 
-    # truncate ให้ดูง่ายในตาราง
-    for col, lim in TRUNC_LIMIT.items():
-        if col in df_table.columns:
-            df_table[col] = df_table[col].apply(lambda x: trunc(clean_val(x), lim))
+st.divider()
 
-    # ตารางแบบอ่านอย่างเดียว
-    st.data_editor(
-        df_table,
-        use_container_width=True,
-        height=700,
-        hide_index=True,
-        disabled=list(df_table.columns),
-        column_config={
-            "ลำดับ": st.column_config.TextColumn(width="small"),
-            "แหล่งข้อมูล": st.column_config.TextColumn(width="small"),
-            "CAS Number": st.column_config.TextColumn(width="small"),
-        },
-    )
+# ---- render cards ----
+for i in range(start, end):
+    row = df_f.iloc[i]
+    src = clean_val(row.get("แหล่งข้อมูล", "-"))
+    common = clean_val(row.get(SEARCH_COMMON, "-"))
+    cas = clean_val(row.get(SEARCH_CAS, "-"))
+    maxc = clean_val(row.get("ความเข้มข้นสูงสุดในเครื่องสำอางพร้อมใช้ (%w/w)", "-"))
+    usecase = clean_val(row.get("กรณีที่ใช้", "-"))
 
-with right:
-    st.subheader("รายละเอียด")
+    title = f"{common}  •  {cas}  •  {src}"
 
-    if len(df_f) == 0:
-        st.stop()
+    with st.container(border=True):
+        st.markdown(f"### {title}")
 
-    # เลือกแถวด้วย dropdown (พิมพ์ค้นหาได้)
-    def make_label(r):
-        common = clean_val(r.get(SEARCH_COMMON, ""))
-        cas = clean_val(r.get(SEARCH_CAS, ""))
-        src = clean_val(r.get("แหล่งข้อมูล", ""))
-        parts = []
-        if common != "-":
-            parts.append(common)
-        if cas != "-":
-            parts.append(f"({cas})")
-        if src != "-":
-            parts.append(f"- {src}")
-        return " ".join(parts) if parts else f"Row {r.name}"
+        a, b, c = st.columns([1.2, 1.2, 2.2])
+        with a:
+            st.caption("ความเข้มข้นสูงสุด")
+            st.write(maxc)
+        with b:
+            st.caption("กรณีที่ใช้")
+            st.write(usecase)
+        with c:
+            st.caption("Chemical Name/Other Name")
+            st.write(clean_val(row.get("Chemical Name/ Other Name", "-")))
 
-    labels = df_f.apply(make_label, axis=1).tolist()
+        with st.expander("ดูรายละเอียด / เงื่อนไขการใช้งาน"):
+            for label, key in FIELDS_MAIN:
+                st.markdown(f"**{label}**")
+                st.write(clean_val(row.get(key, "-")))
 
-    if "selected_label" not in st.session_state or st.session_state.selected_label not in labels:
-        st.session_state.selected_label = labels[0]
-
-    selected = st.selectbox(
-        "เลือกรายการ (พิมพ์เพื่อค้นหาได้)",
-        options=labels,
-        index=labels.index(st.session_state.selected_label),
-    )
-    st.session_state.selected_label = selected
-    idx = labels.index(selected)
-    row = df_f.iloc[idx]
-
-    st.markdown("### ข้อมูลหลัก")
-    for label, key in DETAIL_FIELDS:
-        st.markdown(f"**{label}**")
-        st.write(clean_val(row.get(key, "-")))
-
-    st.markdown("---")
-    st.markdown("### เงื่อนไขการใช้งาน")
-    cond = clean_val(row.get("เงื่อนไข", "-"))
-    st.text_area("", value=cond, height=280)
+            st.markdown("**เงื่อนไขการใช้งาน**")
+            st.write(clean_val(row.get("เงื่อนไข", "-")))
