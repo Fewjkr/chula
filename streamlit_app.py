@@ -1,6 +1,5 @@
 import pandas as pd
 import streamlit as st
-import time
 
 APP_TITLE = "Specified Allowable Concentration Search System"
 
@@ -16,13 +15,12 @@ DISPLAY_COLUMNS = [
 SEARCH_COMMON = "Name of Common Ingredients Glossary"
 SEARCH_CAS = "CAS Number"
 
-# ตัดข้อความใน "ตาราง" ให้พอดีช่อง (แต่รายละเอียดแสดงเต็ม)
 TRUNC_LIMIT = {
-    "Chemical Name/ Other Name": 55,
-    "Name of Common Ingredients Glossary": 40,
-    "กรณีที่ใช้": 35,
-    "ความเข้มข้นสูงสุดในเครื่องสำอางพร้อมใช้ (%w/w)": 55,
-    "เงื่อนไข": 70,
+    "Chemical Name/ Other Name": 60,
+    "Name of Common Ingredients Glossary": 46,
+    "กรณีที่ใช้": 42,
+    "ความเข้มข้นสูงสุดในเครื่องสำอางพร้อมใช้ (%w/w)": 60,
+    "เงื่อนไข": 90,
 }
 
 def trunc(s, n):
@@ -44,35 +42,28 @@ def load_csv(path: str) -> pd.DataFrame:
 def safe_cols(df: pd.DataFrame, cols):
     return [c for c in cols if c in df.columns]
 
-def normalize_str_series(s: pd.Series) -> pd.Series:
+def norm_series(s: pd.Series) -> pd.Series:
     return s.astype(str).str.lower().str.strip()
 
-# ---------------- UI ----------------
 st.set_page_config(page_title=APP_TITLE, layout="wide")
+
+# --- Header ---
 st.title(APP_TITLE)
 st.caption("ระบบค้นหาปริมาณที่กำหนดให้ใช้ได้สำหรับสารกันเสีย และวัตถุที่อาจใช้เป็นส่วนผสมในการผลิตเครื่องสำอาง")
 
-# โหลดข้อมูล
+# --- Load data ---
 df_pres = load_csv("preservatives.csv")
 df_allow = load_csv("allowed.csv")
 df_pres["แหล่งข้อมูล"] = "วัตถุกันเสีย"
 df_allow["แหล่งข้อมูล"] = "วัตถุอาจใช้เป็นส่วนผสม"
 
-# -------- Controls --------
+# --- Controls ---
 c1, c2 = st.columns([1.2, 2.8])
 with c1:
     dataset = st.selectbox("ชุดข้อมูล", ["ทั้งหมด (2 ไฟล์)", "วัตถุกันเสีย", "วัตถุอาจใช้เป็นส่วนผสม"])
 with c2:
-    q = st.text_input("ค้นหา (Common หรือ CAS)", placeholder="เช่น Piroctone olamine หรือ 101-20-2", key="q")
+    q = st.text_input("ค้นหา (Common หรือ CAS)", placeholder="เช่น Piroctone olamine หรือ 101-20-2")
 
-# debounce เล็กน้อยกัน rerun กระตุก (ทำงานฝั่ง client ไม่ได้ 100% แต่ช่วย UX)
-if "last_typing" not in st.session_state:
-    st.session_state.last_typing = 0.0
-
-st.session_state.last_typing = time.time()
-time.sleep(0.10)
-
-# เลือก dataset
 if dataset == "วัตถุกันเสีย":
     df = df_pres.copy()
 elif dataset == "วัตถุอาจใช้เป็นส่วนผสม":
@@ -83,24 +74,22 @@ else:
 cols = safe_cols(df, DISPLAY_COLUMNS)
 show_cols = ["แหล่งข้อมูล"] + cols
 
-# -------- Filter --------
+# --- Filter ---
 df_f = df.copy()
-qq = q.strip()
+qq = (q or "").strip()
 if qq:
     ql = qq.lower()
     mask = False
     if SEARCH_COMMON in df_f.columns:
-        mask = mask | normalize_str_series(df_f[SEARCH_COMMON]).str.contains(ql, na=False)
+        mask = mask | norm_series(df_f[SEARCH_COMMON]).str.contains(ql, na=False)
     if SEARCH_CAS in df_f.columns:
-        mask = mask | normalize_str_series(df_f[SEARCH_CAS]).str.contains(ql, na=False)
+        mask = mask | norm_series(df_f[SEARCH_CAS]).str.contains(ql, na=False)
     df_f = df_f[mask].copy()
 
 df_f = df_f.reset_index(drop=True)
-
 st.write(f"พบ {len(df_f):,} แถว")
 
-# -------- Layout --------
-left, right = st.columns([3.6, 1.4])
+left, right = st.columns([3.4, 1.6])
 
 with left:
     st.subheader("ผลการค้นหา")
@@ -109,69 +98,59 @@ with left:
         st.info("ไม่พบข้อมูล")
         st.stop()
 
-    # สร้างตารางสำหรับแสดง (ตัดคำ)
     df_view = df_f[show_cols].copy()
     for col, lim in TRUNC_LIMIT.items():
         if col in df_view.columns:
             df_view[col] = df_view[col].apply(lambda x: trunc(x, lim))
 
-    # เพิ่มคอลัมน์เลือกแถว
-    if "เลือก" not in st.session_state:
-        st.session_state["เลือก"] = 0
-
-    # data_editor ให้เลือก row ได้ผ่าน radio column
-    df_show = df_view.copy()
-    df_show.insert(0, "เลือก", False)
-
-    # ให้ row ที่เคยเลือกเป็น True
-    sel = st.session_state.get("selected_row", 0)
-    sel = min(max(int(sel), 0), len(df_show) - 1)
-    df_show.loc[:, "เลือก"] = False
-    df_show.loc[sel, "เลือก"] = True
-
-    edited = st.data_editor(
-        df_show,
-        use_container_width=True,
-        height=640,
-        hide_index=True,
-        disabled=[c for c in df_show.columns if c != "เลือก"],
-        column_config={"เลือก": st.column_config.CheckboxColumn(width="small")},
-    )
-
-    # หาแถวที่ถูกติ๊ก
-    checked_idx = edited.index[edited["เลือก"] == True].tolist()
-    if checked_idx:
-        st.session_state["selected_row"] = int(checked_idx[0])
+    st.dataframe(df_view, use_container_width=True, height=680)
 
 with right:
     st.subheader("รายละเอียด")
-    idx = int(st.session_state.get("selected_row", 0))
-    idx = min(max(idx, 0), len(df_f) - 1)
 
+    # สร้าง label ให้เลือก (พิมพ์ค้นหาใน dropdown ได้)
+    def make_label(r):
+        common = str(r.get(SEARCH_COMMON, "")).strip()
+        cas = str(r.get(SEARCH_CAS, "")).strip()
+        src = str(r.get("แหล่งข้อมูล", "")).strip()
+        parts = []
+        if common:
+            parts.append(common)
+        if cas and cas != "nan":
+            parts.append(f"({cas})")
+        if src:
+            parts.append(f"- {src}")
+        return " ".join(parts) if parts else f"Row {r.name}"
+
+    labels = df_f.apply(make_label, axis=1).tolist()
+
+    if "selected_label" not in st.session_state:
+        st.session_state.selected_label = labels[0]
+
+    selected = st.selectbox(
+        "เลือกรายการ (พิมพ์เพื่อค้นหาได้)",
+        options=labels,
+        index=labels.index(st.session_state.selected_label) if st.session_state.selected_label in labels else 0,
+    )
+    st.session_state.selected_label = selected
+    idx = labels.index(selected)
     row = df_f.iloc[idx]
 
-    def show_kv(label, key):
-        val = row.get(key, "-")
-        if pd.isna(val) or str(val).strip() == "":
-            val = "-"
-        st.markdown(f"**{label}**")
-        st.write(val)
-
+    # แสดงแบบอ่านง่ายเป็น section
     st.markdown("### ข้อมูลหลัก")
-    show_kv("แหล่งข้อมูล", "แหล่งข้อมูล")
-    show_kv("ลำดับ", "ลำดับ")
-    show_kv("Common", SEARCH_COMMON)
-    show_kv("CAS", SEARCH_CAS)
-    show_kv("กรณีที่ใช้", "กรณีที่ใช้")
+    st.write(f"**แหล่งข้อมูล:** {row.get('แหล่งข้อมูล','-')}")
+    st.write(f"**ลำดับ:** {row.get('ลำดับ','-')}")
+    st.write(f"**Common:** {row.get(SEARCH_COMMON,'-')}")
+    st.write(f"**CAS:** {row.get(SEARCH_CAS,'-')}")
+    st.write(f"**กรณีที่ใช้:** {row.get('กรณีที่ใช้','-')}")
 
     st.markdown("---")
     st.markdown("### รายละเอียดสาร")
-    show_kv("Chemical Name/Other Name", "Chemical Name/ Other Name")
-    show_kv("ความเข้มข้นสูงสุดในเครื่องสำอางพร้อมใช้ (%w/w)", "ความเข้มข้นสูงสุดในเครื่องสำอางพร้อมใช้ (%w/w)")
+    st.write(f"**Chemical Name/Other Name:** {row.get('Chemical Name/ Other Name','-')}")
+    st.write(f"**ความเข้มข้นสูงสุดในเครื่องสำอางพร้อมใช้ (%w/w):** {row.get('ความเข้มข้นสูงสุดในเครื่องสำอางพร้อมใช้ (%w/w)','-')}")
 
     st.markdown("---")
     st.markdown("### เงื่อนไข")
     cond = row.get("เงื่อนไข", "-")
-    if pd.isna(cond) or str(cond).strip() == "":
-        cond = "-"
-    st.text_area("", value=str(cond), height=240)
+    cond = "-" if (pd.isna(cond) or str(cond).strip() == "") else str(cond)
+    st.text_area("", value=cond, height=280)
