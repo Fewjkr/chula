@@ -1,9 +1,9 @@
 import pandas as pd
 import streamlit as st
 
-APP_TITLE = "Specified Allowable Concentration Search System for Cosmetic Preservatives and Ingredients"
+APP_TITLE = "Specified Allowable Concentration Search System"
 
-# คอลัมน์ที่ต้องการแสดง “ในตาราง”
+# คอลัมน์ที่แสดงในตาราง (ลำดับอยู่หน้าสุด)
 TABLE_COLUMNS_ORDER = [
     "ลำดับ",
     "แหล่งข้อมูล",
@@ -12,10 +12,10 @@ TABLE_COLUMNS_ORDER = [
     "Chemical Name/ Other Name",
     "กรณีที่ใช้",
     "ความเข้มข้นสูงสุดในเครื่องสำอางพร้อมใช้ (%w/w)",
-    # "เงื่อนไข"  <-- ซ่อนไว้ในตาราง (ไปโชว์ในรายละเอียดแทน)
+    "เงื่อนไข",  # ✅ เพิ่มกลับเข้าตาราง
 ]
 
-# คอลัมน์ใน “รายละเอียด”
+# คอลัมน์ในรายละเอียด (แสดงเต็ม อ่านง่าย)
 DETAIL_FIELDS = [
     ("แหล่งข้อมูล", "แหล่งข้อมูล"),
     ("ลำดับ", "ลำดับ"),
@@ -29,12 +29,13 @@ DETAIL_FIELDS = [
 SEARCH_COMMON = "Name of Common Ingredients Glossary"
 SEARCH_CAS = "CAS Number"
 
-# ตัดคำให้พอดีช่อง “เฉพาะในตาราง”
+# ตัดคำให้พอดีช่อง (เฉพาะในตาราง)
 TRUNC_LIMIT = {
     "Chemical Name/ Other Name": 55,
     "Name of Common Ingredients Glossary": 42,
     "กรณีที่ใช้": 40,
     "ความเข้มข้นสูงสุดในเครื่องสำอางพร้อมใช้ (%w/w)": 50,
+    "เงื่อนไข": 80,  # ✅ ตัดคำเงื่อนไขในตาราง
 }
 
 def trunc(s, n):
@@ -58,6 +59,14 @@ def norm_series(s: pd.Series) -> pd.Series:
 
 def safe_cols(df: pd.DataFrame, cols):
     return [c for c in cols if c in df.columns]
+
+def clean_val(v):
+    if v is None:
+        return "-"
+    if isinstance(v, float) and pd.isna(v):
+        return "-"
+    s = str(v).strip()
+    return "-" if s == "" or s.lower() == "nan" else s
 
 st.set_page_config(page_title=APP_TITLE, layout="wide")
 
@@ -108,16 +117,16 @@ with left:
         st.info("ไม่พบข้อมูล")
         st.stop()
 
-    # จัดคอลัมน์ในตาราง: ลำดับอยู่หน้า + ซ่อนเงื่อนไขอัตโนมัติ
+    # จัดคอลัมน์ตามลำดับที่ต้องการ
     table_cols = safe_cols(df_f, TABLE_COLUMNS_ORDER)
     df_table = df_f[table_cols].copy()
 
-    # truncate เฉพาะในตารางให้ดูง่าย
+    # truncate ให้ดูง่ายในตาราง
     for col, lim in TRUNC_LIMIT.items():
         if col in df_table.columns:
-            df_table[col] = df_table[col].apply(lambda x: trunc(x, lim))
+            df_table[col] = df_table[col].apply(lambda x: trunc(clean_val(x), lim))
 
-    # ใช้ data_editor แบบ read-only เพื่อ UI สะอาดขึ้น
+    # ตารางแบบอ่านอย่างเดียว
     st.data_editor(
         df_table,
         use_container_width=True,
@@ -137,17 +146,17 @@ with right:
     if len(df_f) == 0:
         st.stop()
 
-    # เลือกรายการด้วย dropdown (พิมพ์ค้นหาได้)
+    # เลือกแถวด้วย dropdown (พิมพ์ค้นหาได้)
     def make_label(r):
-        common = str(r.get(SEARCH_COMMON, "")).strip()
-        cas = str(r.get(SEARCH_CAS, "")).strip()
-        src = str(r.get("แหล่งข้อมูล", "")).strip()
+        common = clean_val(r.get(SEARCH_COMMON, ""))
+        cas = clean_val(r.get(SEARCH_CAS, ""))
+        src = clean_val(r.get("แหล่งข้อมูล", ""))
         parts = []
-        if common:
+        if common != "-":
             parts.append(common)
-        if cas and cas != "nan":
+        if cas != "-":
             parts.append(f"({cas})")
-        if src:
+        if src != "-":
             parts.append(f"- {src}")
         return " ".join(parts) if parts else f"Row {r.name}"
 
@@ -156,22 +165,21 @@ with right:
     if "selected_label" not in st.session_state or st.session_state.selected_label not in labels:
         st.session_state.selected_label = labels[0]
 
-    selected = st.selectbox("เลือกรายการ (พิมพ์เพื่อค้นหาได้)", options=labels, index=labels.index(st.session_state.selected_label))
+    selected = st.selectbox(
+        "เลือกรายการ (พิมพ์เพื่อค้นหาได้)",
+        options=labels,
+        index=labels.index(st.session_state.selected_label),
+    )
     st.session_state.selected_label = selected
     idx = labels.index(selected)
     row = df_f.iloc[idx]
 
     st.markdown("### ข้อมูลหลัก")
     for label, key in DETAIL_FIELDS:
-        val = row.get(key, "-")
-        if pd.isna(val) or str(val).strip() == "":
-            val = "-"
         st.markdown(f"**{label}**")
-        st.write(val)
+        st.write(clean_val(row.get(key, "-")))
 
     st.markdown("---")
-    st.markdown("### เงื่อนไข")
-    cond = row.get("เงื่อนไข", "-")
-    if pd.isna(cond) or str(cond).strip() == "":
-        cond = "-"
-    st.text_area("", value=str(cond), height=280)
+    st.markdown("### เงื่อนไขการใช้งาน")
+    cond = clean_val(row.get("เงื่อนไข", "-"))
+    st.text_area("", value=cond, height=280)
