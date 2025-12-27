@@ -15,57 +15,50 @@ st.set_page_config(
 )
 
 # ===============================
-# STYLE (LIGHT + FDA BLUE)
+# STYLE (ธีม + layout)
 # ===============================
 st.markdown(
     """
     <style>
         html, body, [class*="css"]  {
             font-family: "Segoe UI", "Noto Sans Thai", sans-serif;
-            background-color: #f8fafc;
         }
 
+        /* พื้นหลังหลัก */
         .stApp {
-            background-color: #f8fafc;
+            background: linear-gradient(180deg, #0b1220 0%, #0e1628 100%);
         }
 
-        /* Header */
+        /* กล่อง card */
+        div[data-testid="stContainer"] {
+            background-color: #0f1a30;
+            border-radius: 14px;
+            padding: 18px;
+            border: 1px solid #1f2a44;
+        }
+
+        /* หัวข้อใหญ่ */
         .app-title {
-            font-size: 38px;
+            font-size: 40px;
             font-weight: 800;
-            color: #0f172a;
-            margin-bottom: 4px;
+            color: #ffffff;
+            margin-bottom: 6px;
         }
 
         .app-subtitle {
             font-size: 16px;
-            color: #475569;
+            color: #cbd5e1;
         }
 
-        /* Card style */
-        div[data-testid="stContainer"] {
-            background: linear-gradient(180deg, #eff6ff 0%, #ffffff 100%);
-            border: 1px solid #bfdbfe;
-            border-left: 6px solid #2563eb;
-            border-radius: 14px;
-            padding: 18px;
-            margin-bottom: 18px;
-            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
-        }
-
-        /* Labels */
+        /* label */
         label {
             font-weight: 600 !important;
-            color: #1e293b !important;
+            color: #e5e7eb !important;
         }
 
-        /* Caption text */
-        .stCaption {
-            color: #64748b;
-        }
-
+        /* เส้นคั่น */
         hr {
-            border-color: #e2e8f0;
+            border-color: #1f2a44;
         }
     </style>
     """,
@@ -73,11 +66,11 @@ st.markdown(
 )
 
 # ===============================
-# HEADER
+# HEADER (โลโก้ + ชื่อ)
 # ===============================
-h1, h2 = st.columns([0.1, 0.9], vertical_alignment="center")
+h1, h2 = st.columns([0.12, 0.88], vertical_alignment="center")
 with h1:
-    st.image("logo.png", width=70)
+    st.image("logo.png", width=72)
 with h2:
     st.markdown(f'<div class="app-title">{APP_TITLE}</div>', unsafe_allow_html=True)
     st.markdown(
@@ -198,7 +191,7 @@ for i in range(start, end):
     cond = clean_val(row.get("เงื่อนไข"))
 
     with st.container():
-        st.markdown(f"### {common} ({cas})")
+        st.markdown(f"### {common} • {cas}")
         st.caption(f"แหล่งข้อมูล: {src} | ลำดับ: {order}")
 
         a, b, c = st.columns([1.2, 1.2, 2.2])
