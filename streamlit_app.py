@@ -121,7 +121,6 @@ for i in range(start, end):
         d1, d2 = st.columns([1.2, 2.8])
         with d1:
             st.caption("ข้อมูลหลัก")
-            st.write(f"**แหล่งข้อมูล:** {src}")
             st.write(f"**ลำดับ:** {order}")
             st.write(f"**Common:** {common}")
             st.write(f"**CAS:** {cas}")
