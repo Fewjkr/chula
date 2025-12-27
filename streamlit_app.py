@@ -65,13 +65,14 @@ if qq:
 df_f = df_f.reset_index(drop=True)
 st.write(f"พบ {len(df_f):,} รายการ")
 
-# ---- pagination (กันหน้าที่ยาวเกินไป) ----
-o1, o2 = st.columns([1.2, 2.8])
+# ---- options ----
+o1, o2 = st.columns([1.2, 3.8])
 with o1:
     show_per_page = st.selectbox("แสดงต่อหน้า", [10, 20, 30, 50], index=1)
 with o2:
-    st.caption("การ์ดจะแสดงรายละเอียดทั้งหมดทันที (ไม่มีปุ่มดูรายละเอียด)")
+    st.caption("รายการจะแสดงรายละเอียดทั้งหมดโดยไม่ต้องกดดู")
 
+# ---- pagination ----
 total = len(df_f)
 if total == 0:
     st.info("ไม่พบข้อมูล")
@@ -84,26 +85,25 @@ end = min(start + show_per_page, total)
 
 st.divider()
 
-# ---- render cards (show all details, no expander) ----
+# ---- render cards (no expander) ----
 for i in range(start, end):
     row = df_f.iloc[i]
 
     src = clean_val(row.get("แหล่งข้อมูล", "-"))
-    order = clean_val(row.get("ลำดับ", "-"))
     common = clean_val(row.get(SEARCH_COMMON, "-"))
     cas = clean_val(row.get(SEARCH_CAS, "-"))
-
     maxc = clean_val(row.get("ความเข้มข้นสูงสุดในเครื่องสำอางพร้อมใช้ (%w/w)", "-"))
     usecase = clean_val(row.get("กรณีที่ใช้", "-"))
     chem = clean_val(row.get("Chemical Name/ Other Name", "-"))
+    order = clean_val(row.get("ลำดับ", "-"))
     cond = clean_val(row.get("เงื่อนไข", "-"))
 
-    with st.container(border=True):
-        # หัวการ์ด
-        st.markdown(f"### {common} • {cas}")
-        st.caption(f"แหล่งข้อมูล: {src}  |  ลำดับ: {order}")
+    title = f"{common} • {cas} • {src}"
 
-        # สรุปสำคัญ
+    with st.container(border=True):
+        st.markdown(f"### {title}")
+
+        # แถวบน: สรุป
         a, b, c = st.columns([1.2, 1.2, 2.2])
         with a:
             st.caption("ความเข้มข้นสูงสุด")
@@ -115,6 +115,16 @@ for i in range(start, end):
             st.caption("Chemical Name/Other Name")
             st.write(chem)
 
-        # เงื่อนไข (แสดงเลย)
-        st.markdown("**เงื่อนไขการใช้งาน**")
-        st.write(cond)
+        st.markdown("---")
+
+        # แถวล่าง: รายละเอียดทั้งหมด (อ่านง่าย)
+        d1, d2 = st.columns([1.2, 2.8])
+        with d1:
+            st.caption("ข้อมูลหลัก")
+            st.write(f"**แหล่งข้อมูล:** {src}")
+            st.write(f"**ลำดับ:** {order}")
+            st.write(f"**Common:** {common}")
+            st.write(f"**CAS:** {cas}")
+        with d2:
+            st.caption("เงื่อนไขการใช้งาน")
+            st.write(cond)
