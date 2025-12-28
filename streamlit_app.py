@@ -4,7 +4,7 @@ from pathlib import Path
 
 APP_TITLE = "Specified Allowable Concentration Search System for Cosmetic Preservatives and Ingredients"
 
-# ---- Column names (หลัก ๆ ตามไฟล์เดิม) ----
+# ---- Column names (หลัก ๆ) ----
 COL_COMMON = "Name of Common Ingredients Glossary"
 COL_CAS = "CAS Number"
 COL_CHEM = "Chemical Name/ Other Name"
@@ -13,7 +13,7 @@ COL_USECASE = "กรณีที่ใช้"
 COL_COND = "เงื่อนไข"
 COL_ORDER = "ลำดับ"
 
-# ---- allowed.csv (ไฟล์ใหม่) อาจมีคอลัมน์ "บริเวณที่ใช้" / ชื่ออื่นคล้าย ๆ ----
+# ---- allowed.csv อาจมีคอลัมน์เพิ่ม ----
 AREA_COL_CANDIDATES = [
     "บริเวณที่ใช้",
     "บริเวณ",
@@ -62,7 +62,10 @@ def load_csv(path: str) -> pd.DataFrame:
         raise last_err
 
 def find_logo_path() -> str | None:
-    candidates = ["logo.png", "logo.jpg", "logo.jpeg", "logo.webp", "logo.PNG", "logo.JPG", "logo.JPEG", "logo.WEBP"]
+    candidates = [
+        "logo.png", "logo.jpg", "logo.jpeg", "logo.webp",
+        "logo.PNG", "logo.JPG", "logo.JPEG", "logo.WEBP",
+    ]
     for name in candidates:
         p = Path(name)
         if p.exists() and p.is_file():
@@ -70,10 +73,10 @@ def find_logo_path() -> str | None:
     return None
 
 def build_title(common: str, cas: str) -> str:
-    # หัวการ์ด: เน้น Common ก่อน (ไม่เอา CAS ขึ้นบนกันรก)
-    if common != "-" and common.strip() != "":
+    # หัวการ์ด: เน้น Common ก่อน (ไม่เอา CAS ไปไว้บนหัว)
+    if common != "-" and common.strip():
         return common
-    if cas != "-" and cas.strip() != "":
+    if cas != "-" and cas.strip():
         return cas
     return "-"
 
@@ -89,9 +92,9 @@ st.markdown(
 html, body, [class*="css"] {
   font-family: "Segoe UI", "Noto Sans Thai", "Noto Sans", sans-serif !important;
 }
-.block-container { padding-top: 1.2rem !important; }
+.block-container { padding-top: 1.65rem !important; padding-bottom: 2.5rem !important; }
 @media (min-width: 1200px){
-  .block-container { max-width: 1260px; }
+  .block-container { max-width: 1280px; }
 }
 
 /* Force readable text on light bg */
@@ -102,49 +105,57 @@ h1, h2, h3, h4, h5, h6 { color: #0f172a !important; }
 /* Divider */
 hr { border-color: #e2e8f0 !important; }
 
-/* Inputs (Text + Select + Number) */
+/* ===== Inputs ===== */
 input, textarea {
   background: #ffffff !important;
   color: #0f172a !important;
   border: 1px solid #cbd5e1 !important;
   border-radius: 14px !important;
+  box-shadow: none !important;
+}
+input:focus, textarea:focus {
+  border: 2px solid #2563eb !important;       /* “ขีด/เส้น” ตอนพิมพ์ */
+  outline: none !important;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12) !important;
 }
 div[data-baseweb="select"] > div{
   background: #ffffff !important;
   border: 1px solid #cbd5e1 !important;
   border-radius: 14px !important;
+  box-shadow: none !important;
+}
+div[data-baseweb="select"] > div:focus-within{
+  border: 2px solid #2563eb !important;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12) !important;
 }
 div[data-baseweb="select"] span{ color: #0f172a !important; }
 label { font-weight: 800 !important; }
 
-/* Number input +/- buttons (แก้สีปุ่ม - + และขีดๆ) */
+/* ===== Number input +/- buttons (แก้สีปุ่ม - + ไม่ให้มั่ว) ===== */
 div[data-testid="stNumberInput"] button {
   background: #2563eb !important;
   border: 1px solid #1d4ed8 !important;
   color: #ffffff !important;
-  border-radius: 10px !important;
-  width: 44px !important;
-  height: 38px !important;
+  border-radius: 12px !important;
+  width: 46px !important;
+  height: 40px !important;
+  box-shadow: 0 6px 14px rgba(37, 99, 235, 0.16) !important;
 }
-div[data-testid="stNumberInput"] button:hover {
-  filter: brightness(0.95) !important;
-}
-div[data-testid="stNumberInput"] button svg {
-  fill: #ffffff !important;
-}
+div[data-testid="stNumberInput"] button:hover { filter: brightness(0.96) !important; }
+div[data-testid="stNumberInput"] button svg { fill: #ffffff !important; }
 
-/* Cards (st.container(border=True)) */
+/* ===== Cards ===== */
 div[data-testid="stContainer"]{
   background: #ffffff !important;
-  border: 1px solid #bfdbfe !important;
-  border-left: 8px solid #2563eb !important;
+  border: 1px solid #c7ddff !important;
+  border-left: 10px solid #2563eb !important;
   border-radius: 18px !important;
   padding: 18px 18px 16px 18px !important;
   margin-bottom: 16px !important;
   box-shadow: 0 10px 26px rgba(15, 23, 42, 0.06) !important;
 }
 
-/* Card title/subtitle with ellipsis (กันชื่อยาวตกบรรทัด) */
+/* Card title/subtitle with ellipsis */
 .card-title{
   font-size: 26px !important;
   font-weight: 900 !important;
@@ -181,12 +192,18 @@ div[data-testid="stContainer"]{
 .section-title{
   font-size: 14px;
   font-weight: 900;
-  margin: 10px 0 6px 0;
+  margin: 12px 0 6px 0;
   color: #0f172a !important;
 }
 
-/* Make columns a bit tighter */
-[data-testid="column"] { padding-right: 8px; padding-left: 8px; }
+/* Columns spacing */
+[data-testid="column"] { padding-right: 10px; padding-left: 10px; }
+
+/* Header layout */
+.header-wrap{
+  margin-top: 10px;         /* “ลงมานิดหน่อยด้านบน” */
+  margin-bottom: 10px;
+}
 </style>
 """,
     unsafe_allow_html=True,
@@ -194,26 +211,35 @@ div[data-testid="stContainer"]{
 
 # -------------------- Header (Logo + Title) --------------------
 logo_path = find_logo_path()
-h1, h2 = st.columns([0.12, 0.88], vertical_alignment="center")
+
+st.markdown('<div class="header-wrap">', unsafe_allow_html=True)
+h1, h2 = st.columns([0.16, 0.84], vertical_alignment="center")
+
 with h1:
     if logo_path:
-        st.image(logo_path, width=90)
+        # เพิ่มขนาด + ให้ดูสมส่วน
+        st.image(logo_path, width=140)
+
 with h2:
     st.markdown(f"## {APP_TITLE}")
     st.caption("ระบบค้นหาปริมาณที่กำหนดให้ใช้ได้สำหรับสารกันเสีย และวัตถุที่อาจใช้เป็นส่วนผสมในการผลิตเครื่องสำอาง")
 
+st.markdown("</div>", unsafe_allow_html=True)
 st.divider()
 
 # -------------------- Load data --------------------
+df_pres = None
+df_allow = None
+
 try:
     df_pres = load_csv("preservatives.csv")
 except Exception:
-    df_pres = None
+    pass
 
 try:
     df_allow = load_csv("allowed.csv")
 except Exception:
-    df_allow = None
+    pass
 
 if df_pres is None and df_allow is None:
     st.error("ไม่พบไฟล์ preservatives.csv และ allowed.csv ในโฟลเดอร์เดียวกับไฟล์ streamlit_app.py")
@@ -234,7 +260,6 @@ with left:
         options = ["วัตถุกันเสีย"]
     else:
         options = ["วัตถุอาจใช้เป็นส่วนผสม"]
-
     dataset = st.selectbox("ชุดข้อมูล", options)
 
 with right:
@@ -298,7 +323,7 @@ for i in range(start, end):
     cond = clean_val(row.get(COL_COND, "-"))
     order = clean_val(row.get(COL_ORDER, "-"))
 
-    # เฉพาะ allowed เท่านั้น
+    # เฉพาะ allowed เท่านั้น: บริเวณที่ใช้
     area_val = "-"
     if src == "วัตถุอาจใช้เป็นส่วนผสม" and area_col is not None:
         area_val = clean_val(row.get(area_col, "-"))
@@ -306,10 +331,11 @@ for i in range(start, end):
     title = build_title(common, cas)
 
     with st.container(border=True):
-        # Title (ไม่เอา CAS ขึ้นบนเพื่อลดรก)
+        # Title: Common (ไม่ใส่ CAS บนหัว)
         st.markdown(f'<div class="card-title">{title}</div>', unsafe_allow_html=True)
 
-        # Subtitle: แหล่งข้อมูล + ลำดับ + CAS (ย้าย CAS มาไว้บรรทัดนี้)
+        # Subtitle: "วัตถุกันเสีย • ลำดับ: 1 • CAS: 65-85-0"
+        # (ไม่มีคำว่า "แหล่งข้อมูล:" แล้ว)
         subtitle_parts = []
         if src != "-":
             subtitle_parts.append(src)
@@ -318,7 +344,6 @@ for i in range(start, end):
         if cas != "-":
             subtitle_parts.append(f"CAS: {cas}")
         subtitle = " • ".join(subtitle_parts)
-
         if subtitle:
             st.markdown(f'<div class="card-subtitle">{subtitle}</div>', unsafe_allow_html=True)
 
@@ -334,10 +359,12 @@ for i in range(start, end):
             st.markdown('<span class="pill">Chemical Name</span>', unsafe_allow_html=True)
             st.write(chem)
 
-        # (เฉพาะ allowed) บริเวณที่ใช้
-        if src == "วัตถุอาจใช้เป็นส่วนผสม" and area_val != "-":
-            st.markdown('<div class="section-title">บริเวณที่ใช้</div>', unsafe_allow_html=True)
-            st.write(area_val)
+        # เฉพาะ allowed: บริเวณที่ใช้
+        if src == "วัตถุอาจใช้เป็นส่วนผสม":
+            # ถ้าไม่มีข้อมูล ก็ยังโชว์หัวข้อได้ (แต่ไม่จำเป็น) → ให้โชว์เฉพาะมีข้อมูลจริง
+            if area_val != "-":
+                st.markdown('<div class="section-title">บริเวณที่ใช้</div>', unsafe_allow_html=True)
+                st.write(area_val)
 
         # เงื่อนไข
         st.markdown('<div class="section-title">เงื่อนไขการใช้งาน</div>', unsafe_allow_html=True)
