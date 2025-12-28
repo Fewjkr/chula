@@ -209,7 +209,7 @@ div[data-testid="stContainer"]{
 
 /* Header layout */
 .header-wrap{
-  margin-top: 12px; /* ลงมานิดหน่อยด้านบน */
+  margin-top: 1px; /* ลงมานิดหน่อยด้านบน */
   margin-bottom: 10px;
 }
 </style>
