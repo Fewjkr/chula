@@ -1,164 +1,218 @@
 import pandas as pd
 import streamlit as st
-from pathlib import Path
 
 APP_TITLE = "Specified Allowable Concentration Search System for Cosmetic Preservatives and Ingredients"
-SEARCH_COMMON = "Name of Common Ingredients Glossary"
-SEARCH_CAS = "CAS Number"
 
-# -------------------------
-# Helpers
-# -------------------------
+# ---- Column names (หลัก ๆ ตามไฟล์เดิม) ----
+COL_COMMON = "Name of Common Ingredients Glossary"
+COL_CAS = "CAS Number"
+COL_CHEM = "Chemical Name/ Other Name"
+COL_MAXC = "ความเข้มข้นสูงสุดในเครื่องสำอางพร้อมใช้ (%w/w)"
+COL_USECASE = "กรณีที่ใช้"
+COL_COND = "เงื่อนไข"
+COL_ORDER = "ลำดับ"
+
+# ---- allowed.csv (ไฟล์ใหม่) อาจมีคอลัมน์ "บริเวณที่ใช้" / ชื่ออื่นคล้าย ๆ ----
+AREA_COL_CANDIDATES = [
+    "บริเวณที่ใช้",
+    "บริเวณ",
+    "Area",
+    "Area of use",
+    "Area of Use",
+    "Use area",
+    "Use Area",
+    "บริเวณ/ส่วนของร่างกายที่ใช้",
+]
+
+# -------------------- Helpers --------------------
 def clean_val(v):
     if v is None:
         return "-"
-    if isinstance(v, float) and pd.isna(v):
-        return "-"
+    try:
+        if isinstance(v, float) and pd.isna(v):
+            return "-"
+    except Exception:
+        pass
     s = str(v).strip()
-    return "-" if s == "" or s.lower() == "nan" else s
+    if s == "" or s.lower() == "nan":
+        return "-"
+    return s
 
 def norm_series(s: pd.Series) -> pd.Series:
     return s.astype(str).str.lower().str.strip()
 
+def pick_col(df: pd.DataFrame, candidates: list[str]) -> str | None:
+    """คืนชื่อคอลัมน์ตัวแรกที่เจอใน df จาก candidates"""
+    for c in candidates:
+        if c in df.columns:
+            return c
+    return None
+
 @st.cache_data
 def load_csv(path: str) -> pd.DataFrame:
-    # รองรับ encoding ทั่วไปที่เจอบ่อยกับไฟล์ไทย
-    for enc in ["utf-8-sig", "utf-8", "cp874"]:
+    # รองรับ encoding ที่เจอบ่อยกับไฟล์ไทย
+    last_err = None
+    for enc in ["utf-8-sig", "utf-8", "cp874", "tis-620"]:
         try:
             return pd.read_csv(path, encoding=enc)
-        except Exception:
-            pass
-    return pd.read_csv(path)
+        except Exception as e:
+            last_err = e
+    # fallback
+    try:
+        return pd.read_csv(path)
+    except Exception:
+        raise last_err
 
-def esc_html(s: str) -> str:
-    # ป้องกันข้อความมี < > & แล้วทำให้ HTML เพี้ยน
-    return (
-        str(s)
-        .replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-        .replace('"', "&quot;")
-    )
+def build_title(common: str, cas: str) -> str:
+    # หัวการ์ด: Common • CAS (ไม่ใส่แหล่งข้อมูลในบรรทัดนี้เพื่อกันยาวเกิน)
+    c1 = common if common != "-" else ""
+    c2 = cas if cas != "-" else ""
+    if c1 and c2:
+        return f"{c1} • {c2}"
+    return c1 or c2 or "-"
 
-# -------------------------
-# Page config
-# -------------------------
-st.set_page_config(page_title=APP_TITLE, layout="wide", page_icon="🧴")
+# -------------------- Page config --------------------
+st.set_page_config(page_title=APP_TITLE, layout="wide")
 
-# -------------------------
-# Light theme + readable components
-# -------------------------
+# -------------------- CSS (Light + modern cards) --------------------
 st.markdown(
     """
-    <style>
-        html, body, [class*="css"] {
-            font-family: "Segoe UI", "Noto Sans Thai", sans-serif;
-            color: #0f172a !important;
-        }
-        .stApp { background-color: #f8fafc; }
+<style>
+/* ===== Page ===== */
+.stApp { background: #f8fafc !important; }
+html, body, [class*="css"] {
+  font-family: "Segoe UI", "Noto Sans Thai", "Noto Sans", sans-serif !important;
+}
 
-        /* header */
-        .app-title {
-            font-size: 34px;
-            font-weight: 800;
-            color: #0f172a;
-            line-height: 1.15;
-            margin-bottom: 4px;
-        }
-        .app-subtitle {
-            font-size: 15px;
-            color: #334155;
-        }
+/* Force readable text on light bg */
+.stApp, .stApp * { color: #0f172a !important; }
+.stCaption, .stCaption * { color: #334155 !important; opacity: 1 !important; }
 
-        /* inputs */
-        input, textarea {
-            background-color: #ffffff !important;
-            color: #0f172a !important;
-            border-radius: 10px !important;
-        }
-        div[data-baseweb="select"] > div {
-            background-color: #ffffff !important;
-            color: #0f172a !important;
-            border-radius: 10px !important;
-        }
+h1, h2, h3, h4, h5, h6 { color: #0f172a !important; }
 
-        /* cards (containers) */
-        div[data-testid="stContainer"] {
-            background: #ffffff;
-            border: 1px solid #bfdbfe;
-            border-left: 6px solid #2563eb;
-            border-radius: 14px;
-            padding: 18px;
-            margin-bottom: 18px;
-            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.07);
-        }
+/* Inputs */
+input, textarea {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 12px !important;
+}
+div[data-baseweb="select"] > div{
+  background: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 12px !important;
+}
+div[data-baseweb="select"] span{ color: #0f172a !important; }
+label { font-weight: 700 !important; }
 
-        /* card title (แก้ปัญหายาวแล้วหล่นบรรทัด) */
-        .card-title {
-            font-size: 24px;
-            font-weight: 800;
-            margin: 0 0 4px 0;
-            white-space: nowrap;        /* ไม่ขึ้นบรรทัดใหม่ */
-            overflow: hidden;           /* ซ่อนส่วนที่เกิน */
-            text-overflow: ellipsis;    /* ... */
-        }
-        .card-subtitle {
-            font-size: 13px;
-            color: #475569;
-            margin: 0 0 10px 0;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
+/* Divider */
+hr { border-color: #e2e8f0 !important; }
 
-        /* captions */
-        .stCaption { color: #475569 !important; }
-        label { font-weight: 600 !important; color: #0f172a !important; }
-        hr { border-color: #e2e8f0; }
+/* Container cards (st.container(border=True)) */
+div[data-testid="stContainer"]{
+  background: #ffffff !important;
+  border: 1px solid #bfdbfe !important;
+  border-left: 6px solid #2563eb !important;
+  border-radius: 16px !important;
+  padding: 18px !important;
+  margin-bottom: 16px !important;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06) !important;
+}
 
-        /* tighten default spacing a bit */
-        .block-container { padding-top: 1.1rem; }
-    </style>
-    """,
-    unsafe_allow_html=True
+/* Card title/subtitle with ellipsis */
+.card-title{
+  font-size: 24px !important;
+  font-weight: 800 !important;
+  line-height: 1.2 !important;
+  margin: 0 0 6px 0 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+.card-subtitle{
+  font-size: 13px !important;
+  color: #334155 !important;
+  opacity: 1 !important;
+  margin: 0 0 12px 0 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+/* Small label pills */
+.pill{
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8 !important;
+  margin-right: 8px;
+}
+
+/* Section titles in card */
+.section-title{
+  font-size: 14px;
+  font-weight: 800;
+  margin: 10px 0 6px 0;
+  color: #0f172a !important;
+}
+
+/* Main content spacing */
+.block-container { padding-top: 1.2rem !important; }
+
+/* Make columns more compact on wide */
+@media (min-width: 1200px){
+  .block-container { max-width: 1250px; }
+}
+</style>
+""",
+    unsafe_allow_html=True,
 )
 
-# -------------------------
-# Header (logo + title)
-# -------------------------
-logo_path = Path("logo.png")
-h1, h2 = st.columns([0.08, 0.92], vertical_alignment="center")
-with h1:
-    if logo_path.exists():
-        st.image(str(logo_path), width=115)
-with h2:
-    st.markdown(f'<div class="app-title">{APP_TITLE}</div>', unsafe_allow_html=True)
-    st.markdown(
-        '<div class="app-subtitle">'
-        'ระบบค้นหาปริมาณที่กำหนดให้ใช้ได้สำหรับสารกันเสียและวัตถุที่อาจใช้เป็นส่วนผสมในการผลิตเครื่องสำอาง'
-        "</div>",
-        unsafe_allow_html=True
-    )
+# -------------------- Header --------------------
+st.markdown(f"## {APP_TITLE}")
+st.caption("ระบบค้นหาปริมาณที่กำหนดให้ใช้ได้สำหรับสารกันเสีย และวัตถุที่อาจใช้เป็นส่วนผสมในการผลิตเครื่องสำอาง")
 
-st.divider()
+# -------------------- Load data --------------------
+try:
+    df_pres = load_csv("preservatives.csv")
+except Exception:
+    df_pres = None
 
-# -------------------------
-# Load data
-# -------------------------
-df_pres = load_csv("preservatives.csv")
-df_allow = load_csv("allowed.csv")
-df_pres["แหล่งข้อมูล"] = "วัตถุกันเสีย"
-df_allow["แหล่งข้อมูล"] = "วัตถุอาจใช้เป็นส่วนผสม"
+try:
+    df_allow = load_csv("allowed.csv")
+except Exception:
+    df_allow = None
 
-# -------------------------
-# Controls
-# -------------------------
-c1, c2 = st.columns([1.1, 2.9])
-with c1:
-    dataset = st.selectbox("ชุดข้อมูล", ["ข้อมูลทั้งหมด", "วัตถุกันเสีย", "วัตถุอาจใช้เป็นส่วนผสม"])
-with c2:
+if df_pres is None and df_allow is None:
+    st.error("ไม่พบไฟล์ preservatives.csv และ allowed.csv ในโฟลเดอร์เดียวกับไฟล์ streamlit_app.py")
+    st.stop()
+
+if df_pres is not None:
+    df_pres["แหล่งข้อมูล"] = "วัตถุกันเสีย"
+if df_allow is not None:
+    df_allow["แหล่งข้อมูล"] = "วัตถุอาจใช้เป็นส่วนผสม"
+
+# -------------------- Controls --------------------
+left, right = st.columns([1.35, 3.0])
+with left:
+    options = []
+    if df_pres is not None and df_allow is not None:
+        options = ["ข้อมูลทั้งหมด", "วัตถุกันเสีย", "วัตถุอาจใช้เป็นส่วนผสม"]
+    elif df_pres is not None:
+        options = ["วัตถุกันเสีย"]
+    else:
+        options = ["วัตถุอาจใช้เป็นส่วนผสม"]
+
+    dataset = st.selectbox("ชุดข้อมูล", options)
+
+with right:
     q = st.text_input("ค้นหา (Common หรือ CAS)", placeholder="เช่น Benzoic acid หรือ 65-85-0")
 
+# dataset selection
 if dataset == "วัตถุกันเสีย":
     df = df_pres.copy()
 elif dataset == "วัตถุอาจใช้เป็นส่วนผสม":
@@ -166,96 +220,96 @@ elif dataset == "วัตถุอาจใช้เป็นส่วนผส
 else:
     df = pd.concat([df_pres, df_allow], ignore_index=True)
 
-# -------------------------
-# Filter (realtime)
-# -------------------------
+# -------------------- Filter realtime --------------------
 df_f = df.copy()
 qq = (q or "").strip()
 if qq:
     ql = qq.lower()
     mask = False
-    if SEARCH_COMMON in df_f.columns:
-        mask = mask | norm_series(df_f[SEARCH_COMMON]).str.contains(ql, na=False)
-    if SEARCH_CAS in df_f.columns:
-        mask = mask | norm_series(df_f[SEARCH_CAS]).str.contains(ql, na=False)
+
+    # common + cas เท่านั้น (ตามที่ต้องการ)
+    if COL_COMMON in df_f.columns:
+        mask = mask | norm_series(df_f[COL_COMMON]).str.contains(ql, na=False)
+    if COL_CAS in df_f.columns:
+        mask = mask | norm_series(df_f[COL_CAS]).str.contains(ql, na=False)
+
     df_f = df_f[mask].copy()
 
 df_f = df_f.reset_index(drop=True)
-st.write(f"พบ {len(df_f):,} รายการ")
+st.write(f"พบ **{len(df_f):,}** รายการ")
 
-# -------------------------
-# Options
-# -------------------------
-o1, o2 = st.columns([1.2, 3.8])
-with o1:
+# -------------------- Pagination --------------------
+c1, c2, c3 = st.columns([1.0, 1.4, 2.6])
+with c1:
     show_per_page = st.selectbox("แสดงต่อหน้า", [10, 20, 30, 50], index=1)
-with o2:
-    st.caption("รายการจะแสดงรายละเอียดทั้งหมดโดยไม่ต้องกดดู")
+with c2:
+    total = len(df_f)
+    pages = (total - 1) // show_per_page + 1 if total else 1
+    page = st.number_input("หน้า", min_value=1, max_value=pages, value=1, step=1)
+with c3:
+    st.caption("แสดงแบบ Block ครบทุกข้อมูล ไม่ต้องกดดูรายละเอียด")
 
-# -------------------------
-# Pagination
-# -------------------------
-total = len(df_f)
-if total == 0:
+if len(df_f) == 0:
     st.info("ไม่พบข้อมูล")
     st.stop()
 
-pages = (total - 1) // show_per_page + 1
-page = st.number_input("หน้า", min_value=1, max_value=pages, value=1, step=1)
 start = (page - 1) * show_per_page
-end = min(start + show_per_page, total)
+end = min(start + show_per_page, len(df_f))
 
 st.divider()
 
-# -------------------------
-# Render cards (no expander)
-# -------------------------
+# -------------------- Render cards --------------------
+# ใช้หัวข้อ "บริเวณที่ใช้" เฉพาะตอน dataset = allowed หรือ รวมทั้งหมดแต่แถวที่มาจาก allowed
+area_col = pick_col(df_f, AREA_COL_CANDIDATES)
+
 for i in range(start, end):
     row = df_f.iloc[i]
 
     src = clean_val(row.get("แหล่งข้อมูล", "-"))
-    common = clean_val(row.get(SEARCH_COMMON, "-"))
-    cas = clean_val(row.get(SEARCH_CAS, "-"))
-    maxc = clean_val(row.get("ความเข้มข้นสูงสุดในเครื่องสำอางพร้อมใช้ (%w/w)", "-"))
-    usecase = clean_val(row.get("กรณีที่ใช้", "-"))
-    chem = clean_val(row.get("Chemical Name/ Other Name", "-"))
-    order = clean_val(row.get("ลำดับ", "-"))
-    cond = clean_val(row.get("เงื่อนไข", "-"))
+    common = clean_val(row.get(COL_COMMON, "-"))
+    cas = clean_val(row.get(COL_CAS, "-"))
+    chem = clean_val(row.get(COL_CHEM, "-"))
+    maxc = clean_val(row.get(COL_MAXC, "-"))
+    usecase = clean_val(row.get(COL_USECASE, "-"))
+    cond = clean_val(row.get(COL_COND, "-"))
+    order = clean_val(row.get(COL_ORDER, "-"))
 
-    # ✅ แก้หัวข้อยาว: เอา src ไปเป็น subtitle และตัดหัวข้อด้วย ellipsis
-    main_title = f"{common} • {cas}"
-    sub_title = src
+    # เฉพาะ allowed เท่านั้น
+    area_val = "-"
+    if src == "วัตถุอาจใช้เป็นส่วนผสม" and area_col is not None:
+        area_val = clean_val(row.get(area_col, "-"))
+
+    title = build_title(common, cas)
 
     with st.container(border=True):
-        st.markdown(
-            f"""
-            <div class="card-title" title="{esc_html(main_title)}">{esc_html(main_title)}</div>
-            <div class="card-subtitle" title="{esc_html(sub_title)}">{esc_html(sub_title)}</div>
-            """,
-            unsafe_allow_html=True
-        )
+        # title + subtitle (ไม่ให้ยาวจนเพี้ยน)
+        st.markdown(f'<div class="card-title">{title}</div>', unsafe_allow_html=True)
 
-        # แถวบน: สรุป
-        a, b, c = st.columns([1.3, 1.6, 2.4])
+        subtitle_parts = []
+        if src != "-":
+            subtitle_parts.append(src)
+        if order != "-":
+            subtitle_parts.append(f"ลำดับ: {order}")
+        subtitle = " • ".join(subtitle_parts) if subtitle_parts else ""
+        if subtitle:
+            st.markdown(f'<div class="card-subtitle">{subtitle}</div>', unsafe_allow_html=True)
+
+        # Summary row
+        a, b, c = st.columns([1.2, 1.2, 2.4])
         with a:
-            st.caption("ความเข้มข้นสูงสุด")
+            st.markdown('<span class="pill">ความเข้มข้นสูงสุด</span>', unsafe_allow_html=True)
             st.write(maxc)
         with b:
-            st.caption("ข้อมูลการใช้งาน")
-            st.write(f"กรณีที่ใช้: {usecase}")
+            st.markdown('<span class="pill">กรณีที่ใช้</span>', unsafe_allow_html=True)
+            st.write(usecase)
         with c:
-            st.caption("Chemical Name / Other Name")
+            st.markdown('<span class="pill">Chemical Name</span>', unsafe_allow_html=True)
             st.write(chem)
 
-        st.markdown("---")
+        # (เพิ่มเฉพาะ allowed) บริเวณที่ใช้
+        if src == "วัตถุอาจใช้เป็นส่วนผสม" and area_val != "-":
+            st.markdown('<div class="section-title">บริเวณที่ใช้</div>', unsafe_allow_html=True)
+            st.write(area_val)
 
-        # แถวล่าง: รายละเอียด
-        d1, d2 = st.columns([1.3, 2.7])
-        with d1:
-            st.caption("ข้อมูลหลัก")
-            st.write(f"**ลำดับ:** {order}")
-            st.write(f"**Common:** {common}")
-            st.write(f"**CAS:** {cas}")
-        with d2:
-            st.caption("เงื่อนไขการใช้งาน")
-            st.write(cond)
+        st.markdown('<div class="section-title">เงื่อนไขการใช้งาน</div>', unsafe_allow_html=True)
+        st.write(cond)
