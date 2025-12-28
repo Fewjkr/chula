@@ -209,7 +209,7 @@ div[data-testid="stContainer"]{
 
 /* Header layout */
 .header-wrap{
-  margin-top: 1px; /* ลงมานิดหน่อยด้านบน */
+  margin-top: 12px; /* ลงมานิดหน่อยด้านบน */
   margin-bottom: 10px;
 }
 </style>
@@ -369,7 +369,7 @@ for i in range(start, end):
 
         # เฉพาะ allowed: บริเวณที่ใช้
         if src == "วัตถุอาจใช้เป็นส่วนผสม" and area_val != "-":
-            st.markdown('<div class="section-title">บริเวณที่ใช้</div>', unsafe_allow_html=True)
+            st.markdown('<div class="section-title">การนำไปใช้</div>', unsafe_allow_html=True)
             st.write(area_val)
 
         # เงื่อนไข
