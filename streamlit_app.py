@@ -92,7 +92,7 @@ st.markdown(
 html, body, [class*="css"] {
   font-family: "Segoe UI", "Noto Sans Thai", "Noto Sans", sans-serif !important;
 }
-.block-container { padding-top: 1.65rem !important; padding-bottom: 2.5rem !important; }
+.block-container { padding-top: 1.75rem !important; padding-bottom: 2.5rem !important; }
 @media (min-width: 1200px){
   .block-container { max-width: 1280px; }
 }
@@ -114,10 +114,12 @@ input, textarea {
   box-shadow: none !important;
 }
 input:focus, textarea:focus {
-  border: 2px solid #2563eb !important;       /* “ขีด/เส้น” ตอนพิมพ์ */
+  border: 2px solid #2563eb !important;
   outline: none !important;
   box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12) !important;
 }
+
+/* Selectbox */
 div[data-baseweb="select"] > div{
   background: #ffffff !important;
   border: 1px solid #cbd5e1 !important;
@@ -131,13 +133,19 @@ div[data-baseweb="select"] > div:focus-within{
 div[data-baseweb="select"] span{ color: #0f172a !important; }
 label { font-weight: 800 !important; }
 
-/* ===== Number input +/- buttons (แก้สีปุ่ม - + ไม่ให้มั่ว) ===== */
+/* ===== Number input +/- buttons ===== */
+div[data-testid="stNumberInput"]{
+  align-items: center !important;
+}
+div[data-testid="stNumberInput"] input{
+  border-radius: 14px !important;
+}
 div[data-testid="stNumberInput"] button {
   background: #2563eb !important;
   border: 1px solid #1d4ed8 !important;
   color: #ffffff !important;
   border-radius: 12px !important;
-  width: 46px !important;
+  width: 44px !important;
   height: 40px !important;
   box-shadow: 0 6px 14px rgba(37, 99, 235, 0.16) !important;
 }
@@ -168,7 +176,7 @@ div[data-testid="stContainer"]{
 .card-subtitle{
   font-size: 13px !important;
   color: #475569 !important;
-  margin: 0 0 12px 0 !important;
+  margin: 0 0 10px 0 !important;
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
@@ -201,7 +209,7 @@ div[data-testid="stContainer"]{
 
 /* Header layout */
 .header-wrap{
-  margin-top: 10px;         /* “ลงมานิดหน่อยด้านบน” */
+  margin-top: 12px; /* ลงมานิดหน่อยด้านบน */
   margin-bottom: 10px;
 }
 </style>
@@ -213,12 +221,12 @@ div[data-testid="stContainer"]{
 logo_path = find_logo_path()
 
 st.markdown('<div class="header-wrap">', unsafe_allow_html=True)
-h1, h2 = st.columns([0.16, 0.84], vertical_alignment="center")
+h1, h2 = st.columns([0.18, 0.82], vertical_alignment="center")
 
 with h1:
     if logo_path:
-        # เพิ่มขนาด + ให้ดูสมส่วน
-        st.image(logo_path, width=140)
+        # ทำให้ใหญ่ขึ้นให้สมส่วน
+        st.image(logo_path, width=180)
 
 with h2:
     st.markdown(f"## {APP_TITLE}")
@@ -334,37 +342,35 @@ for i in range(start, end):
         # Title: Common (ไม่ใส่ CAS บนหัว)
         st.markdown(f'<div class="card-title">{title}</div>', unsafe_allow_html=True)
 
-        # Subtitle: "วัตถุกันเสีย • ลำดับ: 1 • CAS: 65-85-0"
-        # (ไม่มีคำว่า "แหล่งข้อมูล:" แล้ว)
+        # Subtitle: "วัตถุกันเสีย • ลำดับ: 1" (ตัด CAS ออกไป)
         subtitle_parts = []
         if src != "-":
             subtitle_parts.append(src)
         if order != "-":
             subtitle_parts.append(f"ลำดับ: {order}")
-        if cas != "-":
-            subtitle_parts.append(f"CAS: {cas}")
         subtitle = " • ".join(subtitle_parts)
         if subtitle:
             st.markdown(f'<div class="card-subtitle">{subtitle}</div>', unsafe_allow_html=True)
 
-        # Summary row
-        a, b, c = st.columns([1.2, 1.2, 2.4])
+        # Summary row (เพิ่ม CAS เป็นหัวข้อแยก)
+        a, b, c, d = st.columns([1.1, 1.1, 1.1, 2.2])
         with a:
+            st.markdown('<span class="pill">CAS</span>', unsafe_allow_html=True)
+            st.write(cas)
+        with b:
             st.markdown('<span class="pill">ความเข้มข้นสูงสุด</span>', unsafe_allow_html=True)
             st.write(maxc)
-        with b:
+        with c:
             st.markdown('<span class="pill">กรณีที่ใช้</span>', unsafe_allow_html=True)
             st.write(usecase)
-        with c:
+        with d:
             st.markdown('<span class="pill">Chemical Name</span>', unsafe_allow_html=True)
             st.write(chem)
 
         # เฉพาะ allowed: บริเวณที่ใช้
-        if src == "วัตถุอาจใช้เป็นส่วนผสม":
-            # ถ้าไม่มีข้อมูล ก็ยังโชว์หัวข้อได้ (แต่ไม่จำเป็น) → ให้โชว์เฉพาะมีข้อมูลจริง
-            if area_val != "-":
-                st.markdown('<div class="section-title">บริเวณที่ใช้</div>', unsafe_allow_html=True)
-                st.write(area_val)
+        if src == "วัตถุอาจใช้เป็นส่วนผสม" and area_val != "-":
+            st.markdown('<div class="section-title">บริเวณที่ใช้</div>', unsafe_allow_html=True)
+            st.write(area_val)
 
         # เงื่อนไข
         st.markdown('<div class="section-title">เงื่อนไขการใช้งาน</div>', unsafe_allow_html=True)
