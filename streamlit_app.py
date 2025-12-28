@@ -16,7 +16,7 @@ COL_ORDER = "ลำดับ"
 AREA_COL_CANDIDATES = [
     "บริเวณที่ใช้",
     "บริเวณ",
-    "Area",
+    "บริเวณที่ใช้ และ/หรือ การนำไปใช้",
     "Area of use",
     "Area of Use",
     "Use area",
