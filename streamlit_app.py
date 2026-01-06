@@ -133,24 +133,29 @@ div[data-baseweb="select"] > div:focus-within{
 div[data-baseweb="select"] span{ color: #0f172a !important; }
 label { font-weight: 800 !important; }
 
-/* ===== Number input +/- buttons ===== */
-div[data-testid="stNumberInput"]{
-  align-items: center !important;
-}
-div[data-testid="stNumberInput"] input{
-  border-radius: 14px !important;
-}
-div[data-testid="stNumberInput"] button {
+/* ===== Hide Streamlit default +/- inside number_input (เราจะทำปุ่มเอง) ===== */
+div[data-testid="stNumberInput"] button { display: none !important; }
+
+/* ===== Custom +/- buttons ===== */
+div[data-testid="stButton"] > button{
   background: #2563eb !important;
   border: 1px solid #1d4ed8 !important;
   color: #ffffff !important;
-  border-radius: 12px !important;
-  width: 44px !important;
-  height: 40px !important;
-  box-shadow: 0 6px 14px rgba(37, 99, 235, 0.16) !important;
+  border-radius: 14px !important;
+  width: 48px !important;
+  height: 44px !important;
+  padding: 0 !important;
+  font-weight: 900 !important;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.16) !important;
 }
-div[data-testid="stNumberInput"] button:hover { filter: brightness(0.96) !important; }
-div[data-testid="stNumberInput"] button svg { fill: #ffffff !important; }
+div[data-testid="stButton"] > button:hover { filter: brightness(0.96) !important; }
+
+/* Make number input height match buttons */
+div[data-testid="stNumberInput"] input{
+  height: 44px !important;
+  padding-top: 6px !important;
+  padding-bottom: 6px !important;
+}
 
 /* ===== Cards ===== */
 div[data-testid="stContainer"]{
@@ -209,7 +214,7 @@ div[data-testid="stContainer"]{
 
 /* Header layout */
 .header-wrap{
-  margin-top: 12px; /* ลงมานิดหน่อยด้านบน */
+  margin-top: 18px;  /* ลงมานิดหน่อยด้านบน */
   margin-bottom: 10px;
 }
 </style>
@@ -221,12 +226,11 @@ div[data-testid="stContainer"]{
 logo_path = find_logo_path()
 
 st.markdown('<div class="header-wrap">', unsafe_allow_html=True)
-h1, h2 = st.columns([0.18, 0.82], vertical_alignment="center")
+h1, h2 = st.columns([0.22, 0.78], vertical_alignment="center")
 
 with h1:
     if logo_path:
-        # ทำให้ใหญ่ขึ้นให้สมส่วน
-        st.image(logo_path, width=180)
+        st.image(logo_path, width=220)  # รูปใหญ่ขึ้น + สมส่วนขึ้น
 
 with h2:
     st.markdown(f"## {APP_TITLE}")
@@ -296,23 +300,43 @@ if qq:
 df_f = df_f.reset_index(drop=True)
 st.write(f"พบ **{len(df_f):,}** รายการ")
 
-# -------------------- Pagination --------------------
-c1, c2, c3 = st.columns([1.0, 1.4, 2.6])
+# -------------------- Pagination (เลข + ปุ่ม -/+) --------------------
+c1, c2, c3 = st.columns([1.0, 1.6, 2.4])
 with c1:
     show_per_page = st.selectbox("แสดงต่อหน้า", [10, 20, 30, 50], index=1)
-with c2:
-    total = len(df_f)
-    pages = (total - 1) // show_per_page + 1 if total else 1
-    page = st.number_input("หน้า", min_value=1, max_value=pages, value=1, step=1)
-with c3:
-    st.caption("แสดงแบบ Block ครบทุกข้อมูล (ไม่ต้องกดดูรายละเอียด)")
 
-if len(df_f) == 0:
+total = len(df_f)
+if total == 0:
     st.info("ไม่พบข้อมูล")
     st.stop()
 
+pages = (total - 1) // show_per_page + 1
+
+# state
+if "page" not in st.session_state:
+    st.session_state.page = 1
+st.session_state.page = max(1, min(int(st.session_state.page), int(pages)))
+
+with c2:
+    # ทำให้ช่องเลขพอดี + ปุ่มอยู่ข้างๆ แบบไม่เบียด/ขอบไม่แปลก
+    ncol, mcol, pcol = st.columns([1.0, 0.14, 0.14], vertical_alignment="bottom")
+    with ncol:
+        st.number_input("หน้า", min_value=1, max_value=int(pages), value=int(st.session_state.page), step=1, key="page")
+    with mcol:
+        if st.button("−", key="page_minus"):
+            st.session_state.page = max(1, int(st.session_state.page) - 1)
+            st.rerun()
+    with pcol:
+        if st.button("+", key="page_plus"):
+            st.session_state.page = min(int(pages), int(st.session_state.page) + 1)
+            st.rerun()
+
+with c3:
+    st.caption("แสดงแบบ Block ครบทุกข้อมูล (ไม่ต้องกดดูรายละเอียด)")
+
+page = int(st.session_state.page)
 start = (page - 1) * show_per_page
-end = min(start + show_per_page, len(df_f))
+end = min(start + show_per_page, total)
 
 st.divider()
 
@@ -342,7 +366,7 @@ for i in range(start, end):
         # Title: Common (ไม่ใส่ CAS บนหัว)
         st.markdown(f'<div class="card-title">{title}</div>', unsafe_allow_html=True)
 
-        # Subtitle: "วัตถุกันเสีย • ลำดับ: 1" (ตัด CAS ออกไป)
+        # Subtitle: "วัตถุกันเสีย • ลำดับ: 1"
         subtitle_parts = []
         if src != "-":
             subtitle_parts.append(src)
@@ -352,8 +376,8 @@ for i in range(start, end):
         if subtitle:
             st.markdown(f'<div class="card-subtitle">{subtitle}</div>', unsafe_allow_html=True)
 
-        # Summary row (เพิ่ม CAS เป็นหัวข้อแยก)
-        a, b, c, d = st.columns([1.1, 1.1, 1.1, 2.2])
+        # Summary row (CAS เป็นหัวข้อแยก)
+        a, b, c, d = st.columns([1.1, 1.2, 1.2, 2.2])
         with a:
             st.markdown('<span class="pill">CAS</span>', unsafe_allow_html=True)
             st.write(cas)
